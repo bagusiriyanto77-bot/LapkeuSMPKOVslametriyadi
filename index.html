@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Pembukuan SPP Sekolah V14</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .tab-button.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+        .db-tab-button.active { background-color: #3b82f6; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        @media print {
+            body * { visibility: hidden; }
+            #kwitansi-printable-area, #kwitansi-printable-area * { visibility: visible; }
+            #kwitansi-printable-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; }
+            #kwitansi-terbilang { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-8 print:hidden">
+            <div class="flex flex-col md:flex-row justify-between items-start">
+                <div class="flex items-center gap-4">
+                    <img src="https://i.ytimg.com/vi/YXTINgYo7Io/hqdefault.jpg" alt="Logo SMP OV Slamet Riyadi" class="h-20 w-20 rounded-full object-cover">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">SMP OV SLAMET RIYADI REMBANG</h1>
+                        <p class="text-gray-600 mt-1 text-sm">Jln. Dr Wahidin No 9 Rembang, Sumberjo, Kec. Rembang, Kab. Rembang Prov. Jawa Tengah</p>
+                        <p class="text-gray-500 text-sm">Email: smpovslametriyadi@gmail.com</p>
+                    </div>
+                </div>
+                <div class="bg-blue-600 text-white p-4 rounded-lg shadow-lg mt-4 md:mt-0 text-sm w-full md:w-auto flex-shrink-0">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center">
+                            <span class="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                            <span>Status: <strong>Aktif</strong></span>
+                        </div>
+                        <span id="appVersion" class="font-bold"></span>
+                    </div>
+                    <p id="currentTime" class="mt-2 text-blue-200"></p>
+                    <div class="flex items-center mt-2 text-blue-200">
+                         <span id="autoSaveIndicator" class="w-3 h-3 bg-green-400 rounded-full mr-2 transition-opacity duration-500"></span>
+                         <span>Auto-save: <span id="lastSaveTime">belum tersimpan</span></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigasi Tab Utama -->
+        <div class="mb-6 border-b border-gray-200 print:hidden">
+            <nav class="flex space-x-4 md:space-x-8 overflow-x-auto" aria-label="Tabs">
+                <button onclick="changeTab('dashboard')" class="tab-button active py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</button>
+                <button onclick="changeTab('database')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-users mr-2"></i>Database Siswa</button>
+                <button onclick="changeTab('rekap-spp')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-calendar-alt mr-2"></i>Rekap SPP</button>
+                <button onclick="changeTab('rekap-lainnya')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-archive mr-2"></i>Rekap Lainnya</button>
+                <button onclick="changeTab('pembayaran')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-cash-register mr-2"></i>Bayar</button>
+                <button onclick="changeTab('laporan')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-file-alt mr-2"></i>Laporan</button>
+                <button onclick="changeTab('pengaturan')" class="tab-button py-4 px-1 font-medium text-gray-500 hover:text-blue-600 border-b-2 border-transparent flex-shrink-0"><i class="fas fa-cog mr-2"></i>Pengaturan</button>
+            </nav>
+        </div>
+
+        <!-- Konten Tab -->
+        <main>
+            <!-- Dashboard -->
+            <div id="dashboard" class="tab-content active">
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-gray-500 text-sm font-medium">Total Target Penerimaan</h3>
+                        <p id="totalTarget" class="text-3xl font-bold mt-2"></p>
+                        <div class="mt-4 pt-4 border-t border-gray-100 text-sm space-y-2">
+                            <div class="flex justify-between"><span class="text-gray-500">SPP:</span><span id="targetSpp" class="font-medium"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Pangkal:</span><span id="targetPangkal" class="font-medium"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Kegiatan:</span><span id="targetKegiatan" class="font-medium"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-green-500 text-sm font-medium">Total Penerimaan Aktual</h3>
+                        <p id="totalPenerimaan" class="text-3xl font-bold mt-2 text-green-600"></p>
+                         <div class="mt-4 pt-4 border-t border-gray-100 text-sm space-y-2">
+                            <div class="flex justify-between"><span class="text-gray-500">SPP:</span><span id="penerimaanSpp" class="font-medium text-green-600"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Pangkal:</span><span id="penerimaanPangkal" class="font-medium text-green-600"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Kegiatan:</span><span id="penerimaanKegiatan" class="font-medium text-green-600"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-red-500 text-sm font-medium">Total Tunggakan</h3>
+                        <p id="totalTunggakan" class="text-3xl font-bold mt-2 text-red-600"></p>
+                         <div class="mt-4 pt-4 border-t border-gray-100 text-sm space-y-2">
+                            <div class="flex justify-between"><span class="text-gray-500">SPP:</span><span id="tunggakanSpp" class="font-medium text-red-600"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Pangkal:</span><span id="tunggakanPangkal" class="font-medium text-red-600"></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Uang Kegiatan:</span><span id="tunggakanKegiatan" class="font-medium text-red-600"></span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div class="lg:col-span-3 bg-white p-6 rounded-xl shadow-md"><h3 class="font-semibold mb-4">Grafik Pemasukan Bulanan</h3><canvas id="pemasukanChart"></canvas></div>
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md"><h3 class="font-semibold mb-4">Komposisi Tunggakan per Kelas</h3><canvas id="tunggakanChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Database Siswa -->
+            <div id="database" class="tab-content">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <div class="flex-grow">
+                            <h3 class="text-xl font-semibold">Manajemen Data Siswa</h3>
+                             <div class="mt-4 border-b border-gray-200">
+                                <nav class="flex -mb-px space-x-6" aria-label="Tabs" id="db-class-filter">
+                                    <button onclick="changeDatabaseTab('all')" class="db-tab-button active whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Semua Siswa</button>
+                                    <button onclick="changeDatabaseTab('7')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 7</button>
+                                    <button onclick="changeDatabaseTab('8')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 8</button>
+                                    <button onclick="changeDatabaseTab('9')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 9</button>
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap justify-end self-end">
+                            <button id="bulk-delete-btn" onclick="showBulkDeleteModal()" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-trash-alt mr-2"></i>Hapus Terpilih</button>
+                            <input type="text" id="searchInput" onkeyup="renderDatabaseSiswa()" placeholder="Cari nama siswa..." class="w-full md:w-auto px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button onclick="openModal('modal-impor')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-file-import mr-2"></i>Impor</button>
+                            <button onclick="showAddSiswaModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-plus mr-2"></i>Tambah Siswa</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-center w-12"><input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes(this)"></th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Siswa</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tunggakan SPP</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tunggakan Pangkal</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tunggakan Kegiatan</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Tunggakan</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="databaseTableBody" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rekap SPP Bulanan -->
+            <div id="rekap-spp" class="tab-content">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <div class="flex-grow">
+                            <h3 class="text-xl font-semibold">Rekapitulasi Pembayaran SPP Bulanan</h3>
+                            <p class="text-sm text-gray-500">Tahun Ajaran 2025/2026</p>
+                             <div class="mt-4 border-b border-gray-200">
+                                <nav class="flex -mb-px space-x-6" aria-label="Tabs" id="rekap-class-filter">
+                                    <button onclick="changeRekapTab('all')" class="db-tab-button active whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Semua Siswa</button>
+                                    <button onclick="changeRekapTab('7')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 7</button>
+                                    <button onclick="changeRekapTab('8')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 8</button>
+                                    <button onclick="changeRekapTab('9')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">Kelas 9</button>
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap justify-end self-end">
+                            <input type="text" id="rekapSearchInput" onkeyup="renderRekapSpp()" placeholder="Cari nama siswa..." class="w-full md:w-auto px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">Nama Siswa</th>
+                                    <th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jul</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ags</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Sep</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Okt</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nov</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Des</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jan</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Feb</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Mar</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Apr</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Mei</th><th class="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jun</th>
+                                    <th class="py-3 px-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky z-10" style="right: 120px; background-color: inherit;">Total Bayar SPP</th>
+                                    <th class="py-3 px-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky z-10" style="right: 0px; background-color: inherit;">Kekurangan SPP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rekapSppTableBody" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rekap Lainnya -->
+            <div id="rekap-lainnya" class="tab-content">
+                 <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <div class="flex-grow">
+                            <h3 class="text-xl font-semibold">Rekapitulasi Uang Pangkal & Kegiatan</h3>
+                             <div class="mt-4 border-b border-gray-200">
+                                <nav class="flex -mb-px space-x-6" aria-label="Tabs" id="rekap-lainnya-class-filter">
+                                    <button onclick="changeRekapLainnyaTab('all')" class="db-tab-button active whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500">Semua Siswa</button>
+                                    <button onclick="changeRekapLainnyaTab('7')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500">Kelas 7</button>
+                                    <button onclick="changeRekapLainnyaTab('8')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500">Kelas 8</button>
+                                    <button onclick="changeRekapLainnyaTab('9')" class="db-tab-button whitespace-nowrap py-3 px-4 border-b-2 border-transparent font-medium text-sm text-gray-500">Kelas 9</button>
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap justify-end self-end">
+                            <input type="text" id="rekapLainnyaSearchInput" onkeyup="renderRekapLainnya()" placeholder="Cari nama siswa..." class="w-full md:w-auto px-4 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th rowspan="2" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">Nama Siswa</th>
+                                    <th rowspan="2" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">Kelas</th>
+                                    <th colspan="4" class="py-2 px-4 text-center text-xs font-medium text-gray-600 uppercase tracking-wider bg-blue-50 border-b">Uang Pangkal</th>
+                                    <th colspan="4" class="py-2 px-4 text-center text-xs font-medium text-gray-600 uppercase tracking-wider bg-green-50 border-b">Uang Kegiatan</th>
+                                </tr>
+                                <tr class="bg-gray-50">
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Tagihan</th>
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Terbayar</th>
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Kurang</th>
+                                    <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Tagihan</th>
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Terbayar</th>
+                                    <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Kurang</th>
+                                    <th class="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rekapLainnyaTableBody" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catat Pembayaran -->
+            <div id="pembayaran" class="tab-content"><div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md"><h3 class="text-2xl font-semibold mb-6">Formulir Pencatatan Pembayaran</h3><form id="paymentForm" class="space-y-6"></form></div></div>
+            
+            <!-- Laporan -->
+            <div id="laporan" class="tab-content"><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-semibold mb-4">Generate Laporan Pembayaran</h3><div class="flex flex-col sm:flex-row gap-4 mb-4"><div><label for="startDate" class="block text-sm font-medium text-gray-700">Tanggal Mulai</label><input type="date" id="startDate" name="startDate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="endDate" class="block text-sm font-medium text-gray-700">Tanggal Selesai</label><input type="date" id="endDate" name="endDate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div></div><button onclick="generateLaporan()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center"><i class="fas fa-cogs mr-2"></i>Tampilkan Laporan</button><div id="laporan-summary" class="mt-6"></div><div id="laporan-detail" class="mt-4 overflow-x-auto"></div></div><div class="bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-semibold mb-4">Ekspor Data (CSV)</h3><div class="space-y-4"><p class="text-sm text-gray-600">Unduh data siswa atau riwayat pembayaran dalam format CSV yang dapat dibuka dengan Microsoft Excel atau Google Sheets.</p><button onclick="exportDataSiswa()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-left"><i class="fas fa-user-graduate mr-3"></i>Ekspor Data Siswa</button><button onclick="exportRiwayatPembayaran()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-left"><i class="fas fa-file-invoice-dollar mr-3"></i>Ekspor Riwayat Pembayaran</button></div></div></div></div>
+        
+            <!-- Pengaturan -->
+            <div id="pengaturan" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Backup Data -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-2 flex items-center"><i class="fas fa-download mr-3 text-blue-500"></i>Backup Data Aplikasi</h3>
+                        <p class="text-sm text-gray-600 mb-4">Simpan semua data (siswa dan pembayaran) ke dalam sebuah file JSON. Simpan file ini di tempat yang aman sebagai cadangan.</p>
+                        <button onclick="backupData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-cloud-download-alt mr-2"></i>Mulai Backup
+                        </button>
+                    </div>
+                    <!-- Restore Data -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold mb-2 flex items-center"><i class="fas fa-upload mr-3 text-green-500"></i>Restore Data Aplikasi</h3>
+                        <p class="text-sm text-gray-600 mb-4">Pulihkan data dari file backup. <strong class="text-red-600">PERHATIAN:</strong> Semua data yang ada saat ini akan ditimpa oleh data dari file backup.</p>
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="restoreFile" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer">
+                            <button onclick="restoreData()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex-shrink-0">
+                                Restore
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modals -->
+    <div id="modal-siswa" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0"><div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><div class="flex justify-between items-center mb-4"><h2 id="modal-siswa-title" class="text-2xl font-bold"></h2><button onclick="closeModal('modal-siswa')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button></div><form id="form-siswa" class="space-y-4"></form></div></div>
+    <div id="modal-hapus-pembayaran" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0"><div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm p-6 transform scale-95 text-center"><h2 class="text-xl font-bold mb-4">Konfirmasi Hapus</h2><p class="text-gray-600 mb-6">Anda yakin ingin menghapus transaksi pembayaran ini? Tindakan ini tidak dapat dibatalkan.</p><div class="flex justify-center gap-4"><button onclick="closeModal('modal-hapus-pembayaran')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg">Batal</button><button id="confirm-delete-pembayaran-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg">Ya, Hapus</button></div></div></div>
+    <div id="modal-edit-pembayaran" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0"><div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Edit Pembayaran</h2><button onclick="closeModal('modal-edit-pembayaran')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button></div><form id="form-edit-pembayaran" class="space-y-4"></form></div></div>
+    <div id="modal-bulk-hapus" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0"><div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm p-6 transform scale-95 text-center"><h2 class="text-xl font-bold mb-4">Konfirmasi Hapus Massal</h2><p class="text-gray-600 mb-6">Anda yakin ingin menghapus <strong id="bulk-delete-count"></strong> siswa yang dipilih? Tindakan ini tidak dapat dibatalkan.</p><div class="flex justify-center gap-4"><button onclick="closeModal('modal-bulk-hapus')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg">Batal</button><button onclick="confirmBulkDeleteSiswa()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg">Ya, Hapus</button></div></div></div>
+    <div id="modal-impor" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0"><div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg p-6 transform scale-95"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Impor Siswa (Bulk)</h2><button onclick="closeModal('modal-impor')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button></div><p class="text-sm text-gray-600 mb-4">Salin data dari spreadsheet. Pastikan urutan kolom: <br><strong class="font-mono">ID_Siswa, Nama_Siswa, Kelas, SPP_per_Bulan, Uang_Pangkal, Uang_Kegiatan</strong></p><textarea id="bulk-import-data" class="w-full h-40 p-2 border rounded-md font-mono text-sm" placeholder="Contoh:&#10;K7-015,Siswa Baru 1,7,150000,1000000,500000&#10;K8-010,Siswa Baru 2,8,200000,1200000,600000"></textarea><div id="import-feedback" class="text-sm mt-2"></div><div class="flex justify-end gap-4 mt-4"><button onclick="closeModal('modal-impor')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Batal</button><button onclick="prosesImporBulk()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Proses Impor</button></div></div></div>
+    
+    <!-- Modal Kwitansi -->
+    <div id="modal-kwitansi" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl transform scale-95">
+            <div id="kwitansi-printable-area" class="p-8">
+                <div class="flex items-center gap-4 text-left mb-6 border-b pb-4">
+                     <img src="https://i.ytimg.com/vi/YXTINgYo7Io/hqdefault.jpg" alt="Logo SMP OV Slamet Riyadi" class="h-16 w-16 rounded-full object-cover">
+                     <div>
+                        <h2 class="text-xl font-bold">SMP OV SLAMET RIYADI REMBANG</h2>
+                        <p class="text-xs text-gray-500">Jln. Dr Wahidin No 9 Rembang, Sumberjo, Kec. Rembang, Kab. Rembang Prov. Jawa Tengah</p>
+                        <p class="text-xs text-gray-500">Email: smpovslametriyadi@gmail.com</p>
+                     </div>
+                </div>
+                <h3 class="text-xl font-bold text-center mb-6">KWITANSI PEMBAYARAN</h3>
+                <div class="grid grid-cols-3 gap-4 text-sm mb-6">
+                    <div class="col-span-2"><span class="font-semibold block">No. Kwitansi:</span><span id="kwitansi-nomor"></span></div>
+                    <div class="text-right"><span class="font-semibold block">Tanggal:</span><span id="kwitansi-tanggal"></span></div>
+                </div>
+                <div class="mb-4 text-sm">
+                    <table class="w-full">
+                        <tbody>
+                            <tr><td class="font-semibold align-top pr-4 py-1 w-36">Telah Diterima Dari</td><td class="align-top py-1 w-4">:</td><td class="align-top py-1 font-semibold" id="kwitansi-nama"></td></tr>
+                            <tr><td class="font-semibold align-top pr-4 py-1">Uang Sejumlah</td><td class="align-top py-1">:</td><td class="align-top py-1 italic bg-gray-100 p-2 rounded" id="kwitansi-terbilang"></td></tr>
+                            <tr><td class="font-semibold align-top pr-4 py-1">Untuk Pembayaran</td><td class="align-top py-1">:</td><td class="align-top py-1" id="kwitansi-keterangan"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <table class="w-full text-sm border-t border-b my-6">
+                    <thead><tr class="border-b"><th class="py-2 px-3 text-left font-semibold">Jenis Pembayaran</th><th class="py-2 px-3 text-right font-semibold">Jumlah</th></tr></thead>
+                    <tbody><tr><td class="py-2 px-3" id="kwitansi-jenis"></td><td class="py-2 px-3 text-right" id="kwitansi-jumlah-detail"></td></tr></tbody>
+                </table>
+                <div class="flex justify-between items-start mt-8">
+                    <div class="font-bold text-lg bg-gray-800 text-white p-3 rounded">TOTAL: <span id="kwitansi-total"></span></div>
+                    <div class="text-center text-sm w-48">
+                        <p>Rembang, <span id="kwitansi-tanggal-ttd"></span></p>
+                        <p>Penerima,</p>
+                        <div class="h-16"></div>
+                        <p class="font-semibold">(_______________________)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-100 p-4 flex justify-end gap-4 rounded-b-lg print:hidden">
+                <button onclick="closeModal('modal-kwitansi')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Tutup</button>
+                <button onclick="printKwitansi()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-print mr-2"></i>Cetak</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA MANAGEMENT ---
+        const APP_VERSION = "V14";
+        let siswaDb = []; let pembayaranDb = []; let currentDbClassFilter = 'all'; let currentRekapClassFilter = 'all'; let currentRekapLainnyaClassFilter = 'all';
+        const initialSiswaData=[{id:"K7-001",nama:"Budi Santoso",kelas:7,spp:150000,uangPangkal:1000000,uangKegiatan:500000},{id:"K7-002",nama:"Citra Lestari",kelas:7,spp:125000,uangPangkal:800000,uangKegiatan:500000},{id:"K7-003",nama:"Doni Saputra",kelas:7,spp:150000,uangPangkal:1000000,uangKegiatan:500000},{id:"K7-004",nama:"Eka Putri",kelas:7,spp:130000,uangPangkal:900000,uangKegiatan:500000},{id:"K7-005",nama:"Fajar Nugroho",kelas:7,spp:160000,uangPangkal:1100000,uangKegiatan:500000},{id:"K7-006",nama:"Gita Permata",kelas:7,spp:140000,uangPangkal:1000000,uangKegiatan:500000},{id:"K7-007",nama:"Hadi Wirawan",kelas:7,spp:155000,uangPangkal:1050000,uangKegiatan:500000},{id:"K7-008",nama:"Indah Cahyani",kelas:7,spp:120000,uangPangkal:750000,uangKegiatan:500000},{id:"K7-009",nama:"Joko Susilo",kelas:7,spp:150000,uangPangkal:1000000,uangKegiatan:500000},{id:"K7-010",nama:"Kartika Sari",kelas:7,spp:135000,uangPangkal:950000,uangKegiatan:500000},{id:"K7-011",nama:"Lia Agustina",kelas:7,spp:145000,uangPangkal:980000,uangKegiatan:500000},{id:"K7-012",nama:"Maman Abdurahman",kelas:7,spp:150000,uangPangkal:1000000,uangKegiatan:500000},{id:"K7-013",nama:"Nadia Utami",kelas:7,spp:125000,uangPangkal:850000,uangKegiatan:500000},{id:"K7-014",nama:"Oscar Maulana",kelas:7,spp:165000,uangPangkal:1200000,uangKegiatan:500000},{id:"K8-001",nama:"Putri Wulandari",kelas:8,spp:200000,uangPangkal:1200000,uangKegiatan:600000},{id:"K8-002",nama:"Qomarudin",kelas:8,spp:180000,uangPangkal:1100000,uangKegiatan:600000},{id:"K8-003",nama:"Rahmat Hidayat",kelas:8,spp:190000,uangPangkal:1150000,uangKegiatan:600000},{id:"K8-004",nama:"Siti Nurhaliza",kelas:8,spp:175000,uangPangkal:1000000,uangKegiatan:600000},{id:"K8-005",nama:"Taufik Hidayat",kelas:8,spp:210000,uangPangkal:1300000,uangKegiatan:600000},{id:"K8-006",nama:"Umar Bakri",kelas:8,spp:200000,uangPangkal:1200000,uangKegiatan:600000},{id:"K8-007",nama:"Vina Panduwinata",kelas:8,spp:185000,uangPangkal:1050000,uangKegiatan:600000},{id:"K8-008",nama:"Wahyu Abadi",kelas:8,spp:195000,uangPangkal:1250000,uangKegiatan:600000},{id:"K8-009",nama:"Yulia Puspita",kelas:8,spp:205000,uangPangkal:1280000,uangKegiatan:600000},{id:"K9-001",nama:"Zainal Abidin",kelas:9,spp:175000,uangPangkal:900000,uangKegiatan:550000},{id:"K9-002",nama:"Agus Salim",kelas:9,spp:160000,uangPangkal:850000,uangKegiatan:550000},{id:"K9-003",nama:"Bella Saphira",kelas:9,spp:180000,uangPangkal:950000,uangKegiatan:550000},{id:"K9-004",nama:"Candra Wijaya",kelas:9,spp:170000,uangPangkal:900000,uangKegiatan:550000},{id:"K9-005",nama:"Dewi Persik",kelas:9,spp:190000,uangPangkal:1000000,uangKegiatan:550000},{id:"K9-006",nama:"Eko Yuli Irawan",kelas:9,spp:175000,uangPangkal:920000,uangKegiatan:550000},{id:"K9-007",nama:"Fitri Carlina",kelas:9,spp:165000,uangPangkal:880000,uangKegiatan:550000},{id:"K9-008",nama:"Guntur Triaji",kelas:9,spp:185000,uangPangkal:980000,uangKegiatan:550000},{id:"K9-009",nama:"Hesti Purwadinata",kelas:9,spp:175000,uangPangkal:900000,uangKegiatan:550000},{id:"K9-010",nama:"Irfan Bachdim",kelas:9,spp:200000,uangPangkal:1100000,uangKegiatan:550000},{id:"K9-011",nama:"Jihan Fahira",kelas:9,spp:180000,uangPangkal:950000,uangKegiatan:550000},{id:"K9-012",nama:"Krisdayanti",kelas:9,spp:195000,uangPangkal:1050000,uangKegiatan:550000},{id:"K9-013",nama:"Limbad",kelas:9,spp:170000,uangPangkal:900000,uangKegiatan:550000},{id:"K9-014",nama:"Mayangsari",kelas:9,spp:185000,uangPangkal:980000,uangKegiatan:550000},{id:"K9-015",nama:"Nassar",kelas:9,spp:175000,uangPangkal:900000,uangKegiatan:550000},{id:"K9-016",nama:"Opick",kelas:9,spp:160000,uangPangkal:850000,uangKegiatan:550000},{id:"K9-017",nama:"Pasha Ungu",kelas:9,spp:190000,uangPangkal:1000000,uangKegiatan:550000},{id:"K9-018",nama:"Rossa",kelas:9,spp:210000,uangPangkal:1200000,uangKegiatan:550000}];
+        const initialPembayaranData=[{id:1722820000001,tanggal:"2025-07-05",idSiswa:"K7-001",jenis:"SPP",keterangan:"Juli 2025",jumlah:150000, bulan:7, tahun:2025},{id:1722820000002,tanggal:"2025-07-06",idSiswa:"K8-001",jenis:"Uang Pangkal",keterangan:"Cicilan ke-1",jumlah:600000},{id:1722820000003,tanggal:"2025-08-10",idSiswa:"K7-001",jenis:"SPP",keterangan:"Agustus 2025",jumlah:150000, bulan:8, tahun:2025},{id:1722820000004,tanggal:"2025-08-11",idSiswa:"K9-001",jenis:"Uang Kegiatan",keterangan:"Lunas",jumlah:550000},{id:1722820000005,tanggal:"2025-08-15",idSiswa:"K7-002",jenis:"SPP",keterangan:"Juli 2025",jumlah:125000, bulan:7, tahun:2025}];
+        
+        // --- SCRIPT UTAMA ---
+        const formatRupiah=(number)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(number);
+        function saveData(){localStorage.setItem('spp_siswaDb',JSON.stringify(siswaDb));localStorage.setItem('spp_pembayaranDb',JSON.stringify(pembayaranDb));localStorage.setItem('spp_lastSave', new Date().toISOString());updateHeaderStatus();}
+        function loadData(){const loadedSiswa=localStorage.getItem('spp_siswaDb');const loadedPembayaran=localStorage.getItem('spp_pembayaranDb');siswaDb=loadedSiswa?JSON.parse(loadedSiswa):initialSiswaData;pembayaranDb=loadedPembayaran?JSON.parse(loadedPembayaran):initialPembayaranData}
+        function getPembayaranSiswa(idSiswa){const p=pembayaranDb.filter(p=>p.idSiswa===idSiswa);return{spp:p.filter(i=>i.jenis==='SPP').reduce((sum,i)=>sum+i.jumlah,0),uangPangkal:p.filter(i=>i.jenis==='Uang Pangkal').reduce((sum,i)=>sum+i.jumlah,0),uangKegiatan:p.filter(i=>i.jenis==='Uang Kegiatan').reduce((sum,i)=>sum+i.jumlah,0)}}
+        
+        function getTunggakanDetailSiswa(siswa) {
+            const bayar = getPembayaranSiswa(siswa.id);
+            const tSpp = (siswa.spp * 12) - bayar.spp;
+            const tPangkal = siswa.uangPangkal - bayar.uangPangkal;
+            const tKegiatan = siswa.uangKegiatan - bayar.uangKegiatan;
+            return { spp: tSpp > 0 ? tSpp : 0, pangkal: tPangkal > 0 ? tPangkal : 0, kegiatan: tKegiatan > 0 ? tKegiatan : 0, };
+        }
+
+        function getTunggakanSiswa(siswa){ const detail = getTunggakanDetailSiswa(siswa); return detail.spp + detail.pangkal + detail.kegiatan; }
+
+        let pemasukanChartInstance,tunggakanChartInstance;
+        function renderAll(){renderDashboard();renderDatabaseSiswa();renderRekapSpp();renderRekapLainnya();populateSiswaDropdown();renderPaymentForm();renderSiswaForm();setDefaultDates();updateBulkDeleteButton()}
+        
+        function renderDashboard() {
+            const totalTarget = siswaDb.reduce((sum, s) => sum + (s.spp * 12) + s.uangPangkal + s.uangKegiatan, 0);
+            const totalPenerimaan = pembayaranDb.reduce((sum, p) => sum + p.jumlah, 0);
+            const targetSpp = siswaDb.reduce((sum, s) => sum + (s.spp * 12), 0);
+            const targetPangkal = siswaDb.reduce((sum, s) => sum + s.uangPangkal, 0);
+            const targetKegiatan = siswaDb.reduce((sum, s) => sum + s.uangKegiatan, 0);
+            const penerimaanSpp = pembayaranDb.filter(p => p.jenis === 'SPP').reduce((sum, p) => sum + p.jumlah, 0);
+            const penerimaanPangkal = pembayaranDb.filter(p => p.jenis === 'Uang Pangkal').reduce((sum, p) => sum + p.jumlah, 0);
+            const penerimaanKegiatan = pembayaranDb.filter(p => p.jenis === 'Uang Kegiatan').reduce((sum, p) => sum + p.jumlah, 0);
+            const tunggakanSpp = targetSpp - penerimaanSpp;
+            const tunggakanPangkal = targetPangkal - penerimaanPangkal;
+            const tunggakanKegiatan = targetKegiatan - penerimaanKegiatan;
+
+            document.getElementById('totalTarget').textContent = formatRupiah(totalTarget);
+            document.getElementById('totalPenerimaan').textContent = formatRupiah(totalPenerimaan);
+            document.getElementById('totalTunggakan').textContent = formatRupiah(totalTarget - totalPenerimaan);
+            document.getElementById('targetSpp').textContent = formatRupiah(targetSpp);
+            document.getElementById('targetPangkal').textContent = formatRupiah(targetPangkal);
+            document.getElementById('targetKegiatan').textContent = formatRupiah(targetKegiatan);
+            document.getElementById('penerimaanSpp').textContent = formatRupiah(penerimaanSpp);
+            document.getElementById('penerimaanPangkal').textContent = formatRupiah(penerimaanPangkal);
+            document.getElementById('penerimaanKegiatan').textContent = formatRupiah(penerimaanKegiatan);
+            document.getElementById('tunggakanSpp').textContent = formatRupiah(tunggakanSpp > 0 ? tunggakanSpp : 0);
+            document.getElementById('tunggakanPangkal').textContent = formatRupiah(tunggakanPangkal > 0 ? tunggakanPangkal : 0);
+            document.getElementById('tunggakanKegiatan').textContent = formatRupiah(tunggakanKegiatan > 0 ? tunggakanKegiatan : 0);
+            
+            const months=['Jul','Ags','Sep','Okt','Nov','Des','Jan','Feb','Mar','Apr','Mei','Jun'];const monthNumbers={7:0,8:1,9:2,10:3,11:4,12:5,1:6,2:7,3:8,4:9,5:10,6:11};const dataPemasukan={spp:Array(12).fill(0),pangkal:Array(12).fill(0),kegiatan:Array(12).fill(0)};pembayaranDb.forEach(p=>{const month=new Date(p.tanggal).getMonth()+1;const year=new Date(p.tanggal).getFullYear();if((year===2025&&month>=7)||(year===2026&&month<=6)){const idx=monthNumbers[month];if(idx!==undefined){if(p.jenis==="SPP")dataPemasukan.spp[idx]+=p.jumlah;if(p.jenis==="Uang Pangkal")dataPemasukan.pangkal[idx]+=p.jumlah;if(p.jenis==="Uang Kegiatan")dataPemasukan.kegiatan[idx]+=p.jumlah}}});if(pemasukanChartInstance)pemasukanChartInstance.destroy();pemasukanChartInstance=new Chart(document.getElementById('pemasukanChart'),{type:'bar',data:{labels:months,datasets:[{label:'SPP',data:dataPemasukan.spp,backgroundColor:'#3b82f6'},{label:'Uang Pangkal',data:dataPemasukan.pangkal,backgroundColor:'#10b981'},{label:'Uang Kegiatan',data:dataPemasukan.kegiatan,backgroundColor:'#f59e0b'}]},options:{responsive:!0,scales:{x:{stacked:!0},y:{stacked:!0,beginAtZero:!0}}}});const tunggakanKelas={7:0,8:0,9:0};siswaDb.forEach(s=>{tunggakanKelas[s.kelas]+=getTunggakanSiswa(s)});if(tunggakanChartInstance)tunggakanChartInstance.destroy();tunggakanChartInstance=new Chart(document.getElementById('tunggakanChart'),{type:'pie',data:{labels:['Kelas 7','Kelas 8','Kelas 9'],datasets:[{data:[tunggakanKelas[7],tunggakanKelas[8],tunggakanKelas[9]],backgroundColor:['#60a5fa','#f87171','#fbbf24']}]},options:{responsive:!0,plugins:{legend:{position:'top'}}}})}
+        
+        function renderDatabaseSiswa(){
+            const tbody=document.getElementById('databaseTableBody'); const searchTerm=document.getElementById('searchInput').value.toLowerCase();
+            let filteredSiswa=siswaDb; if(currentDbClassFilter!=='all'){filteredSiswa=siswaDb.filter(s=>s.kelas==currentDbClassFilter)}
+            filteredSiswa=filteredSiswa.filter(s=>s.nama.toLowerCase().includes(searchTerm)); tbody.innerHTML='';
+            filteredSiswa.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(siswa=>{
+                const tunggakanDetail = getTunggakanDetailSiswa(siswa); const totalTunggakan = tunggakanDetail.spp + tunggakanDetail.pangkal + tunggakanDetail.kegiatan;
+                const status=totalTunggakan<=0?'LUNAS':'BELUM LUNAS'; const statusClass=status==='LUNAS'?'bg-green-100 text-green-800':'bg-red-100 text-red-800';
+                tbody.innerHTML+=`<tr class="hover:bg-gray-50"><td class="py-4 px-4 text-center"><input type="checkbox" class="siswa-checkbox" data-id="${siswa.id}" onchange="updateBulkDeleteButton()"></td><td class="py-4 px-4 text-sm font-medium text-gray-900">${siswa.id}</td><td class="py-4 px-4 text-sm text-gray-500">${siswa.nama}</td><td class="py-4 px-4 text-sm text-gray-500">${siswa.kelas}</td><td class="py-4 px-4 text-sm text-gray-500">${formatRupiah(tunggakanDetail.spp)}</td><td class="py-4 px-4 text-sm text-gray-500">${formatRupiah(tunggakanDetail.pangkal)}</td><td class="py-4 px-4 text-sm text-gray-500">${formatRupiah(tunggakanDetail.kegiatan)}</td><td class="py-4 px-4 text-sm text-gray-900 font-semibold">${formatRupiah(totalTunggakan)}</td><td class="py-4 px-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">${status}</span></td><td class="py-4 px-4 text-sm font-medium space-x-2"><button onclick="showEditSiswaModal('${siswa.id}')" class="text-blue-600 hover:text-blue-900"><i class="fas fa-edit"></i></button><button onclick="showDeleteSiswaModal('${siswa.id}')" class="text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button></td></tr>`
+            });
+            document.getElementById('selectAllCheckbox').checked=false; updateBulkDeleteButton();
+        }
+
+        function populateSiswaDropdown(){const select=document.getElementById('idSiswa');if(!select)return;const currentVal=select.value;select.innerHTML='<option value="">-- Pilih Siswa --</option>';siswaDb.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(s=>{select.innerHTML+=`<option value="${s.id}">${s.id} - ${s.nama}</option>`});select.value=currentVal}
+        function renderPaymentForm(){document.getElementById('paymentForm').innerHTML=`<div><label for="tanggalBayar" class="block text-sm font-medium text-gray-700">Tanggal Bayar</label><input type="date" id="tanggalBayar" name="tanggalBayar" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="idSiswa" class="block text-sm font-medium text-gray-700">Siswa</label><select id="idSiswa" name="idSiswa" required onchange="updatePaymentFormView()" class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm"></select></div><div><label for="jenisPembayaran" class="block text-sm font-medium text-gray-700">Jenis Pembayaran</label><select id="jenisPembayaran" name="jenisPembayaran" onchange="updatePaymentFormView()" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm"><option value="SPP">SPP</option><option value="Uang Pangkal">Uang Pangkal</option><option value="Uang Kegiatan">Uang Kegiatan</option></select></div><div id="spp-fields" class="hidden"><div class="mt-6"><p class="block text-sm font-medium text-gray-700">Pilih Bulan Pembayaran SPP</p><div id="spp-monthly-selection" class="grid grid-cols-3 gap-2 mt-2"></div></div><div class="mt-6 bg-gray-50 p-3 rounded-lg"><p class="text-sm font-medium">Total Pembayaran SPP:</p><p id="spp-total-display" class="text-xl font-bold text-blue-600">Rp 0</p></div></div><div id="lainnya-fields"><div class="mt-6"><div id="lainnya-payment-details" class="p-4 bg-gray-50 rounded-lg text-sm space-y-2 hidden"></div></div><div class="mt-6"><label for="keterangan" class="block text-sm font-medium text-gray-700">Keterangan</label><input type="text" id="keterangan" name="keterangan" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"></div><div class="mt-6"><label for="jumlahBayar" class="block text-sm font-medium text-gray-700">Jumlah Bayar (Rp)</label><div class="flex items-center gap-2"><input type="text" id="jumlahBayar" name="jumlahBayar" required placeholder="Contoh: 50.000" oninput="formatNumberInput(this)" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"><button type="button" id="bayar-lunas-btn" onclick="bayarLunas()" class="hidden bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg mt-1">Lunas</button></div></div></div><div class="mt-6"><button type="submit" class="w-full flex justify-center py-3 px-4 border rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Simpan Pembayaran</button></div>`;document.getElementById('tanggalBayar').valueAsDate=new Date();populateSiswaDropdown();updatePaymentFormView()}
+        function renderSiswaForm(siswa={}){document.getElementById('form-siswa').innerHTML=`<input type="hidden" name="mode" value="${siswa.id?'edit':'add'}"><input type="hidden" name="originalId" value="${siswa.id||''}"><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">ID Siswa</label><input type="text" name="id" value="${siswa.id||''}" required class="block w-full px-3 py-2 border rounded-md"></div><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">Nama Lengkap</label><input type="text" name="nama" value="${siswa.nama||''}" required class="block w-full px-3 py-2 border rounded-md"></div><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">Kelas</label><select name="kelas" required class="block w-full px-3 py-2 border rounded-md"><option value="7">7</option><option value="8">8</option><option value="9">9</option></select></div><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">SPP / Bulan (Rp)</label><input type="number" name="spp" value="${siswa.spp||''}" required class="block w-full px-3 py-2 border rounded-md"></div><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">Uang Pangkal (Rp)</label><input type="number" name="uangPangkal" value="${siswa.uangPangkal||''}" required class="block w-full px-3 py-2 border rounded-md"></div><div class="space-y-2"><label class="block text-sm font-medium text-gray-700">Uang Kegiatan (Rp)</label><input type="number" name="uangKegiatan" value="${siswa.uangKegiatan||''}" required class="block w-full px-3 py-2 border rounded-md"></div><div class="pt-4"><button type="submit" class="w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Simpan Data</button></div>`;if(siswa.kelas)document.querySelector('#form-siswa select[name="kelas"]').value=siswa.kelas}
+        function openModal(id){document.getElementById(id).classList.remove('hidden');setTimeout(()=>document.getElementById(id).classList.remove('opacity-0'),10);document.getElementById(id).querySelector('.modal-content').classList.remove('scale-95')}
+        function closeModal(id){document.getElementById(id).classList.add('opacity-0');document.getElementById(id).querySelector('.modal-content').classList.add('scale-95');setTimeout(()=>document.getElementById(id).classList.add('hidden'),300)}
+        function changeTab(tabName){document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.getElementById(tabName).classList.add('active');document.querySelectorAll('.tab-button').forEach(b=>b.classList.remove('active'));document.querySelector(`button[onclick="changeTab('${tabName}')"]`).classList.add('active')}
+        function showAddSiswaModal(){document.getElementById('modal-siswa-title').textContent='Tambah Siswa Baru';renderSiswaForm();if(currentDbClassFilter!=='all'){document.querySelector('#form-siswa select[name="kelas"]').value=currentDbClassFilter}openModal('modal-siswa')}
+        function showEditSiswaModal(id){const siswa=siswaDb.find(s=>s.id===id);if(siswa){document.getElementById('modal-siswa-title').textContent='Edit Data Siswa';renderSiswaForm(siswa);openModal('modal-siswa')}}
+        function showDeleteSiswaModal(id){document.getElementById('confirm-delete-btn').onclick=()=>confirmDeleteSiswa(id);openModal('modal-hapus')}
+        function confirmDeleteSiswa(id){siswaDb=siswaDb.filter(s=>s.id!==id);saveData();renderAll();closeModal('modal-hapus')}
+        function prosesImporBulk(){const data=document.getElementById('bulk-import-data').value.trim();const feedbackEl=document.getElementById('import-feedback');if(!data){feedbackEl.textContent='Area data kosong.';feedbackEl.className='text-sm mt-2 text-red-600';return}const lines=data.split('\n');let added=0,errors=0;lines.forEach(line=>{const parts=line.split(/[\t,]/).map(p=>p.trim());if(parts.length===6){const[id,nama,kelas,spp,uangPangkal,uangKegiatan]=parts;if(id&&nama&&!siswaDb.some(s=>s.id===id)){siswaDb.push({id,nama,kelas:parseInt(kelas),spp:parseInt(spp),uangPangkal:parseInt(uangPangkal),uangKegiatan:parseInt(uangKegiatan)});added++}else{errors++}}else{errors++}});if(added>0){saveData();renderAll()}feedbackEl.textContent=`Berhasil: ${added} siswa. Gagal/Duplikat: ${errors} baris.`;feedbackEl.className='text-sm mt-2 text-green-600';document.getElementById('bulk-import-data').value=''}
+        
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            e.preventDefault(); const data = new FormData(e.target); const jenis = data.get('jenisPembayaran');
+            const idSiswa = data.get('idSiswa');
+            if (!idSiswa) { alert('Silakan pilih siswa terlebih dahulu.'); return; }
+            const siswa = siswaDb.find(s => s.id === idSiswa); if (!siswa) { alert('Siswa tidak ditemukan'); return; }
+
+            if (jenis === 'SPP') {
+                const selectedMonths = document.querySelectorAll('#spp-monthly-selection input:not(:disabled):checked'); 
+                if (selectedMonths.length === 0) { alert('Pilih minimal satu bulan untuk pembayaran SPP.'); return; }
+                const tanggalBayar = data.get('tanggalBayar');
+                selectedMonths.forEach(checkbox => {
+                    const [bulan, tahun] = checkbox.value.split('-').map(Number);
+                    pembayaranDb.push({ id: Date.now() + Math.random(), tanggal: tanggalBayar, idSiswa: idSiswa, jenis: 'SPP', keterangan: `${checkbox.nextElementSibling.textContent} ${tahun}`, jumlah: siswa.spp, bulan, tahun });
+                });
+            } else {
+                const jumlahBayarFormatted = data.get('jumlahBayar') || '0'; 
+                const jumlahBayarParsed = parseInt(jumlahBayarFormatted.replace(/\./g, ''));
+                if (isNaN(jumlahBayarParsed) || jumlahBayarParsed <= 0) { alert('Jumlah bayar tidak valid.'); return; }
+                const bayar = getPembayaranSiswa(idSiswa);
+                const sisa = jenis === 'Uang Pangkal' ? siswa.uangPangkal - bayar.uangPangkal : siswa.uangKegiatan - bayar.uangKegiatan;
+                if(jumlahBayarParsed > sisa) { alert(`Pembayaran melebihi sisa tagihan! Sisa tagihan adalah ${formatRupiah(sisa)}.`); return; }
+
+                pembayaranDb.push({ id: Date.now(), tanggal: data.get('tanggalBayar'), idSiswa: idSiswa, jenis: jenis, keterangan: data.get('keterangan'), jumlah: jumlahBayarParsed });
+            }
+            saveData(); alert('Pembayaran berhasil disimpan!'); e.target.reset(); document.getElementById('tanggalBayar').valueAsDate = new Date(); renderAll();
+        });
+
+        document.getElementById('form-siswa').addEventListener('submit',function(e){e.preventDefault();const data=new FormData(e.target);const mode=data.get('mode');const originalId=data.get('originalId');const newSiswa={id:data.get('id'),nama:data.get('nama'),kelas:parseInt(data.get('kelas')),spp:parseInt(data.get('spp')),uangPangkal:parseInt(data.get('uangPangkal')),uangKegiatan:parseInt(data.get('uangKegiatan'))};if(mode==='add'){if(siswaDb.some(s=>s.id===newSiswa.id)){alert('Error: ID Siswa sudah ada!');return}siswaDb.push(newSiswa)}else{const index=siswaDb.findIndex(s=>s.id===originalId);if(index!==-1)siswaDb[index]=newSiswa}saveData();renderAll();closeModal('modal-siswa')});
+        document.getElementById('form-edit-pembayaran').addEventListener('submit', function (e) {
+            e.preventDefault(); const data = new FormData(e.target);
+            const paymentId = Number(data.get('paymentId'));
+            const index = pembayaranDb.findIndex(p => p.id === paymentId);
+            if (index !== -1) {
+                const jumlahBayarFormatted = data.get('jumlahBayar') || '0';
+                pembayaranDb[index].tanggal = data.get('tanggalBayar');
+                pembayaranDb[index].jumlah = parseInt(jumlahBayarFormatted.replace(/\./g, ''));
+                pembayaranDb[index].keterangan = data.get('keterangan');
+            }
+            saveData(); renderAll(); closeModal('modal-edit-pembayaran'); generateLaporan();
+        });
+        function setDefaultDates(){const end=new Date();const start=new Date(end.getFullYear(),end.getMonth(),1);document.getElementById('endDate').valueAsDate=end;document.getElementById('startDate').valueAsDate=start}
+        
+        function generateLaporan() {
+            const startDate=document.getElementById('startDate').value; const endDate=document.getElementById('endDate').value;
+            const summaryDiv=document.getElementById('laporan-summary'); const detailDiv=document.getElementById('laporan-detail');
+            if(!startDate||!endDate){summaryDiv.innerHTML=`<p class="text-red-600">Silakan pilih rentang tanggal terlebih dahulu.</p>`;detailDiv.innerHTML='';return}
+            const filteredPayments=pembayaranDb.filter(p=>p.tanggal>=startDate&&p.tanggal<=endDate);
+            const total=filteredPayments.reduce((sum,p)=>sum+p.jumlah,0);
+            summaryDiv.innerHTML=`<div class="bg-gray-50 p-4 rounded-lg"><p class="font-semibold">Total Pemasukan Periode ${startDate} s/d ${endDate}:</p><p class="text-2xl font-bold text-blue-600">${formatRupiah(total)}</p><p class="text-sm text-gray-500">${filteredPayments.length} transaksi ditemukan.</p></div>`;
+            if(filteredPayments.length > 0) {
+                let tableHTML = `<table class="min-w-full bg-white mt-4 text-sm"><thead class="bg-gray-50"><tr><th class="py-2 px-3 text-left">Tanggal</th><th class="py-2 px-3 text-left">Nama Siswa</th><th class="py-2 px-3 text-left">Jenis</th><th class="py-2 px-3 text-right">Jumlah</th><th class="py-2 px-3 text-center">Aksi</th></tr></thead><tbody>`;
+                filteredPayments.sort((a,b) => b.id - a.id).forEach(p => {
+                    const siswa = siswaDb.find(s => s.id === p.idSiswa);
+                    const editButton = p.jenis !== 'SPP' ? `<button onclick="showEditPembayaranModal(${p.id})" class="text-blue-600 hover:text-blue-900"><i class="fas fa-edit"></i></button>` : `<span class="text-gray-300 cursor-not-allowed"><i class="fas fa-edit"></i></span>`;
+                    tableHTML += `<tr class="border-b">
+                        <td class="py-2 px-3">${p.tanggal}</td>
+                        <td class="py-2 px-3">${siswa ? siswa.nama : 'Siswa Dihapus'}</td>
+                        <td class="py-2 px-3">${p.keterangan}</td>
+                        <td class="py-2 px-3 text-right">${formatRupiah(p.jumlah)}</td>
+                        <td class="py-2 px-3 text-center space-x-3">
+                            ${editButton}
+                            <button onclick="showDeletePembayaranModal(${p.id})" class="text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                            <button onclick="showKwitansi(${p.id})" class="text-green-600 hover:text-green-900"><i class="fas fa-receipt"></i></button>
+                        </td>
+                    </tr>`;
+                });
+                tableHTML += `</tbody></table>`;
+                detailDiv.innerHTML = tableHTML;
+            } else {
+                detailDiv.innerHTML = `<p class="text-center text-gray-500 mt-4">Tidak ada data pembayaran pada periode ini.</p>`;
+            }
+        }
+
+        function exportToCsv(filename,rows){const processRow=row=>row.map(val=>{let finalVal=(val===null||val===undefined)?'':String(val);if(/[",\n]/.test(finalVal)){finalVal=`"${finalVal.replace(/"/g,'""')}"`}return finalVal}).join(',');const csvContent="data:text/csv;charset=utf-8,"+rows.map(processRow).join('\n');const encodedUri=encodeURI(csvContent);const link=document.createElement("a");link.setAttribute("href",encodedUri);link.setAttribute("download",filename);document.body.appendChild(link);link.click();document.body.removeChild(link)}
+        function exportDataSiswa(){const headers=["ID Siswa","Nama","Kelas","SPP per Bulan","Tagihan Uang Pangkal","Tagihan Uang Kegiatan"];const data=siswaDb.map(s=>[s.id,s.nama,s.kelas,s.spp,s.uangPangkal,s.uangKegiatan]);exportToCsv("data_siswa.csv",[headers,...data])}
+        function exportRiwayatPembayaran(){const headers=["Tanggal","ID Siswa","Nama Siswa","Kelas","Jenis Pembayaran","Keterangan","Jumlah","Bulan Alokasi","Tahun Alokasi"];const data=pembayaranDb.map(p=>{const siswa=siswaDb.find(s=>s.id===p.idSiswa);return[p.tanggal,p.idSiswa,siswa?siswa.nama:'N/A',siswa?siswa.kelas:'N/A',p.jenis,p.keterangan,p.jumlah,p.bulan||'',p.tahun||'']});exportToCsv("riwayat_pembayaran.csv",[headers,...data])}
+        function terbilang(n){if(n===0)return'Nol Rupiah';const bilangan=["","satu","dua","tiga","empat","lima","enam","tujuh","delapan","sembilan","sepuluh","sebelas"];function convert(num){if(num<12)return bilangan[num];if(num<20)return bilangan[num-10]+" belas";if(num<100)return(bilangan[Math.floor(num/10)]+" puluh "+bilangan[num%10]).trim();if(num<200)return"seratus "+convert(num-100);if(num<1000)return(bilangan[Math.floor(num/100)]+" ratus "+convert(num%100)).trim();if(num<2000)return"seribu "+convert(num-1000);if(num<1e6)return(convert(Math.floor(num/1000))+" ribu "+convert(num%1000)).trim();if(num<1e9)return(convert(Math.floor(num/1e6))+" juta "+convert(num%1e6)).trim();return"Angka terlalu besar"}let str=convert(n).replace(/\s+/g,' ');return str.charAt(0).toUpperCase()+str.slice(1)+" Rupiah"}
+        function printKwitansi(){window.print()}
+        function showKwitansi(paymentId){const payment=pembayaranDb.find(p=>p.id===paymentId);if(!payment){alert('Data pembayaran tidak ditemukan!');return}const student=siswaDb.find(s=>s.id===payment.idSiswa);const tgl=new Date(payment.tanggal).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});document.getElementById('kwitansi-nomor').textContent=payment.id;document.getElementById('kwitansi-tanggal').textContent=tgl;document.getElementById('kwitansi-tanggal-ttd').textContent=tgl;document.getElementById('kwitansi-nama').textContent=student?student.nama:'Siswa Dihapus';document.getElementById('kwitansi-terbilang').textContent=terbilang(payment.jumlah);document.getElementById('kwitansi-keterangan').textContent=`${payment.jenis} (${payment.keterangan})`;document.getElementById('kwitansi-jenis').textContent=payment.jenis;document.getElementById('kwitansi-jumlah-detail').textContent=formatRupiah(payment.jumlah);document.getElementById('kwitansi-total').textContent=formatRupiah(payment.jumlah);openModal('modal-kwitansi')}
+        function formatNumberInput(input){let value=input.value.replace(/\D/g,'');let formattedValue=new Intl.NumberFormat('id-ID').format(value||0);if(formattedValue==='0')formattedValue='';input.value=formattedValue}
+        function updateBulkDeleteButton(){const selectedCount=document.querySelectorAll('.siswa-checkbox:checked').length;const btn=document.getElementById('bulk-delete-btn');if(selectedCount>0){btn.classList.remove('hidden')}else{btn.classList.add('hidden')}}
+        function toggleAllCheckboxes(masterCheckbox){document.querySelectorAll('#databaseTableBody .siswa-checkbox').forEach(cb=>cb.checked=masterCheckbox.checked);updateBulkDeleteButton()}
+        function showBulkDeleteModal(){const selectedCheckboxes=document.querySelectorAll('.siswa-checkbox:checked');document.getElementById('bulk-delete-count').textContent=selectedCheckboxes.length;openModal('modal-bulk-hapus')}
+        function confirmBulkDeleteSiswa(){const selectedIds=Array.from(document.querySelectorAll('.siswa-checkbox:checked')).map(cb=>cb.dataset.id);siswaDb=siswaDb.filter(s=>!selectedIds.includes(s.id));saveData();renderAll();closeModal('modal-bulk-hapus')}
+        function changeDatabaseTab(filter){currentDbClassFilter=filter;document.querySelectorAll('#db-class-filter .db-tab-button').forEach(b=>{b.classList.remove('active','bg-blue-600','text-white');b.classList.add('text-gray-500','hover:text-blue-600','hover:border-blue-300')});const activeButton=document.querySelector(`#db-class-filter .db-tab-button[onclick="changeDatabaseTab('${filter}')"]`);activeButton.classList.add('active','bg-blue-600','text-white');activeButton.classList.remove('text-gray-500','hover:text-blue-600','hover:border-blue-300');renderDatabaseSiswa()}
+        
+        function getSppBayarPerBulan(idSiswa, month, year) {
+            return pembayaranDb.filter(p => p.idSiswa === idSiswa && p.jenis === 'SPP' && p.bulan === month && p.tahun === year).reduce((sum, p) => sum + p.jumlah, 0);
+        }
+
+        function renderRekapSpp() {
+            const tbody = document.getElementById('rekapSppTableBody'); const searchTerm = document.getElementById('rekapSearchInput').value.toLowerCase();
+            const months = [ {m:7,y:2025,n:"Juli"},{m:8,y:2025,n:"Ags"},{m:9,y:2025,n:"Sep"},{m:10,y:2025,n:"Okt"},{m:11,y:2025,n:"Nov"},{m:12,y:2025,n:"Des"},{m:1,y:2026,n:"Jan"},{m:2,y:2026,n:"Feb"},{m:3,y:2026,n:"Mar"},{m:4,y:2026,n:"Apr"},{m:5,y:2026,n:"Mei"},{m:6,y:2026,n:"Jun"} ];
+            let filteredSiswa = siswaDb; if (currentRekapClassFilter !== 'all') { filteredSiswa = siswaDb.filter(s => s.kelas == currentRekapClassFilter); }
+            filteredSiswa = filteredSiswa.filter(s => s.nama.toLowerCase().includes(searchTerm)); tbody.innerHTML = '';
+            filteredSiswa.sort((a, b) => a.nama.localeCompare(b.nama)).forEach(siswa => {
+                const totalSppPaid = getPembayaranSiswa(siswa.id).spp; const totalSppBill = siswa.spp * 12; const totalSppShortage = totalSppBill - totalSppPaid > 0 ? totalSppBill - totalSppPaid : 0;
+                let row = `<tr class="hover:bg-gray-50"><td class="py-2 px-2 font-medium text-gray-900 sticky left-0 bg-white hover:bg-gray-50 z-10">${siswa.nama} <span class="text-xs text-gray-400">(${siswa.id})</span></td>`;
+                months.forEach(month => {
+                    const paid = getSppBayarPerBulan(siswa.id, month.m, month.y);
+                    let cellClass = 'text-right'; if (paid >= siswa.spp) { cellClass += ' bg-green-50 text-green-800'; } else if (paid > 0) { cellClass += ' bg-yellow-50 text-yellow-800'; } else { cellClass += ' bg-red-50 text-red-700'; }
+                    const displayValue = paid > 0 ? new Intl.NumberFormat('id-ID').format(paid) : '-'; row += `<td class="py-2 px-2 ${cellClass}">${displayValue}</td>`;
+                });
+                row += `<td class="py-2 px-2 text-right font-semibold sticky z-10 hover:bg-gray-50" style="right: 120px; background-color: white;">${formatRupiah(totalSppPaid)}</td>`;
+                row += `<td class="py-2 px-2 text-right font-semibold sticky z-10 hover:bg-gray-50 text-red-600" style="right: 0px; background-color: white;">${formatRupiah(totalSppShortage)}</td>`;
+                row += `</tr>`; tbody.innerHTML += row;
+            });
+        }
+
+        function changeRekapTab(filter) {
+            currentRekapClassFilter = filter;
+            document.querySelectorAll('#rekap-class-filter .db-tab-button').forEach(b => { b.classList.remove('active', 'bg-blue-600', 'text-white'); b.classList.add('text-gray-500', 'hover:text-blue-600', 'hover:border-blue-300'); });
+            const activeButton = document.querySelector(`#rekap-class-filter .db-tab-button[onclick="changeRekapTab('${filter}')"]`);
+            activeButton.classList.add('active', 'bg-blue-600', 'text-white'); activeButton.classList.remove('text-gray-500', 'hover:text-blue-600', 'hover:border-blue-300'); renderRekapSpp();
+        }
+
+        function renderRekapLainnya() {
+            const tbody = document.getElementById('rekapLainnyaTableBody'); const searchTerm = document.getElementById('rekapLainnyaSearchInput').value.toLowerCase();
+            let filteredSiswa = siswaDb; if (currentRekapLainnyaClassFilter !== 'all') { filteredSiswa = siswaDb.filter(s => s.kelas == currentRekapLainnyaClassFilter); }
+            filteredSiswa = filteredSiswa.filter(s => s.nama.toLowerCase().includes(searchTerm)); tbody.innerHTML = '';
+            filteredSiswa.sort((a,b) => a.nama.localeCompare(b.nama)).forEach(siswa => {
+                const bayar = getPembayaranSiswa(siswa.id);
+                const kurangPangkal = siswa.uangPangkal - bayar.uangPangkal > 0 ? siswa.uangPangkal - bayar.uangPangkal : 0;
+                const kurangKegiatan = siswa.uangKegiatan - bayar.uangKegiatan > 0 ? siswa.uangKegiatan - bayar.uangKegiatan : 0;
+                const statusPangkal = kurangPangkal <= 0 ? 'LUNAS' : 'BELUM'; const statusPangkalClass = statusPangkal === 'LUNAS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                const statusKegiatan = kurangKegiatan <= 0 ? 'LUNAS' : 'BELUM'; const statusKegiatanClass = statusKegiatan === 'LUNAS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4">${siswa.nama}</td>
+                        <td class="py-2 px-4">${siswa.kelas}</td>
+                        <td class="py-2 px-4 text-right bg-blue-50">${formatRupiah(siswa.uangPangkal)}</td>
+                        <td class="py-2 px-4 text-right bg-blue-50">${formatRupiah(bayar.uangPangkal)}</td>
+                        <td class="py-2 px-4 text-right bg-blue-50 font-semibold">${formatRupiah(kurangPangkal)}</td>
+                        <td class="py-2 px-4 text-center bg-blue-50"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusPangkalClass}">${statusPangkal}</span></td>
+                        <td class="py-2 px-4 text-right bg-green-50">${formatRupiah(siswa.uangKegiatan)}</td>
+                        <td class="py-2 px-4 text-right bg-green-50">${formatRupiah(bayar.uangKegiatan)}</td>
+                        <td class="py-2 px-4 text-right bg-green-50 font-semibold">${formatRupiah(kurangKegiatan)}</td>
+                        <td class="py-2 px-4 text-center bg-green-50"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusKegiatanClass}">${statusKegiatan}</span></td>
+                    </tr>`;
+            });
+        }
+        function changeRekapLainnyaTab(filter) {
+            currentRekapLainnyaClassFilter = filter;
+            document.querySelectorAll('#rekap-lainnya-class-filter .db-tab-button').forEach(b => { b.classList.remove('active', 'bg-blue-600', 'text-white'); b.classList.add('text-gray-500', 'hover:text-blue-600', 'hover:border-blue-300'); });
+            const activeButton = document.querySelector(`#rekap-lainnya-class-filter .db-tab-button[onclick="changeRekapLainnyaTab('${filter}')"]`);
+            activeButton.classList.add('active', 'bg-blue-600', 'text-white'); activeButton.classList.remove('text-gray-500', 'hover:text-blue-600', 'hover:border-blue-300'); renderRekapLainnya();
+        }
+
+        function updatePaymentFormView() {
+            const jenis = document.getElementById('jenisPembayaran').value;
+            const sppFields = document.getElementById('spp-fields');
+            const lainnyaFields = document.getElementById('lainnya-fields');
+            const keteranganInput = document.getElementById('keterangan'); 
+            const jumlahBayarInput = document.getElementById('jumlahBayar');
+            const detailLainnya = document.getElementById('lainnya-payment-details');
+            const btnLunas = document.getElementById('bayar-lunas-btn');
+
+            if (jenis === 'SPP') { 
+                sppFields.classList.remove('hidden');
+                lainnyaFields.classList.add('hidden');
+                keteranganInput.required = false; 
+                jumlahBayarInput.required = false; 
+                populateSppCheckboxes(); 
+            } else { 
+                sppFields.classList.add('hidden');
+                lainnyaFields.classList.remove('hidden');
+                keteranganInput.required = true; 
+                jumlahBayarInput.required = true;
+                
+                const idSiswa = document.getElementById('idSiswa').value;
+                if(idSiswa) {
+                    const siswa = siswaDb.find(s => s.id === idSiswa);
+                    const bayar = getPembayaranSiswa(idSiswa);
+                    const isPangkal = jenis === 'Uang Pangkal';
+                    const tagihan = isPangkal ? siswa.uangPangkal : siswa.uangKegiatan;
+                    const sudahBayar = isPangkal ? bayar.uangPangkal : bayar.uangKegiatan;
+                    const sisa = tagihan - sudahBayar > 0 ? tagihan - sudahBayar : 0;
+
+                    detailLainnya.innerHTML = `
+                        <div class="flex justify-between"><span>Total Tagihan:</span> <span class="font-semibold">${formatRupiah(tagihan)}</span></div>
+                        <div class="flex justify-between"><span>Sudah Dibayar:</span> <span class="text-green-600 font-semibold">${formatRupiah(sudahBayar)}</span></div>
+                        <div class="flex justify-between"><span>Sisa Tagihan:</span> <span class="text-red-600 font-bold">${formatRupiah(sisa)}</span></div>
+                    `;
+                    detailLainnya.classList.remove('hidden');
+                    if(sisa > 0) btnLunas.classList.remove('hidden'); else btnLunas.classList.add('hidden');
+
+                } else {
+                    detailLainnya.classList.add('hidden');
+                    btnLunas.classList.add('hidden');
+                }
+            }
+        }
+        
+        function bayarLunas() {
+            const idSiswa = document.getElementById('idSiswa').value;
+            const jenis = document.getElementById('jenisPembayaran').value;
+            const siswa = siswaDb.find(s => s.id === idSiswa);
+            const bayar = getPembayaranSiswa(idSiswa);
+            const isPangkal = jenis === 'Uang Pangkal';
+            const sisa = isPangkal ? siswa.uangPangkal - bayar.uangPangkal : siswa.uangKegiatan - bayar.uangKegiatan;
+            const jumlahBayarInput = document.getElementById('jumlahBayar');
+            jumlahBayarInput.value = new Intl.NumberFormat('id-ID').format(sisa > 0 ? sisa : 0);
+        }
+
+        function populateSppCheckboxes() {
+            const container = document.getElementById('spp-monthly-selection');
+            const idSiswa = document.getElementById('idSiswa').value;
+            container.innerHTML = '';
+            if (!idSiswa) { container.innerHTML = '<p class="text-sm text-gray-500 col-span-3">Pilih siswa terlebih dahulu.</p>'; updateSppTotal(); return; }
+            const siswa = siswaDb.find(s => s.id === idSiswa);
+            const months = [ {m:7,y:2025,n:"Juli"},{m:8,y:2025,n:"Ags"},{m:9,y:2025,n:"Sep"},{m:10,y:2025,n:"Okt"},{m:11,y:2025,n:"Nov"},{m:12,y:2025,n:"Des"},{m:1,y:2026,n:"Jan"},{m:2,y:2026,n:"Feb"},{m:3,y:2026,n:"Mar"},{m:4,y:2026,n:"Apr"},{m:5,y:2026,n:"Mei"},{m:6,y:2026,n:"Jun"} ];
+            months.forEach(month => {
+                const paid = getSppBayarPerBulan(idSiswa, month.m, month.y); const isPaid = paid >= siswa.spp;
+                container.innerHTML += `
+                    <label class="flex items-center p-2 rounded-md ${isPaid ? 'bg-gray-200 cursor-not-allowed' : 'hover:bg-gray-100'}">
+                        <input type="checkbox" value="${month.m}-${month.y}" onchange="updateSppTotal()" ${isPaid ? 'checked disabled' : ''} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="ml-2 text-sm ${isPaid ? 'text-gray-400' : 'text-gray-700'}">${month.n}</span>
+                    </label>`;
+            });
+            updateSppTotal();
+        }
+
+        function updateSppTotal() {
+            const idSiswa = document.getElementById('idSiswa').value;
+            const totalDisplay = document.getElementById('spp-total-display');
+            if (!idSiswa) { totalDisplay.textContent = 'Rp 0'; return; }
+            const siswa = siswaDb.find(s => s.id === idSiswa);
+            const selectedCount = document.querySelectorAll('#spp-monthly-selection input:not(:disabled):checked').length;
+            const total = selectedCount * siswa.spp;
+            totalDisplay.textContent = formatRupiah(total);
+        }
+        function showDeletePembayaranModal(id){document.getElementById('confirm-delete-pembayaran-btn').onclick=()=>confirmDeletePembayaran(id);openModal('modal-hapus-pembayaran')}
+        function confirmDeletePembayaran(id){pembayaranDb=pembayaranDb.filter(p=>p.id!==id);saveData();renderAll();closeModal('modal-hapus-pembayaran');generateLaporan()}
+        function showEditPembayaranModal(id) {
+            const payment = pembayaranDb.find(p => p.id === id);
+            const form = document.getElementById('form-edit-pembayaran');
+            form.innerHTML = `
+                <input type="hidden" name="paymentId" value="${payment.id}">
+                <div><label class="block text-sm">Tanggal</label><input type="date" name="tanggalBayar" value="${payment.tanggal}" required class="mt-1 w-full border rounded-md p-2"></div>
+                <div><label class="block text-sm">Keterangan</label><input type="text" name="keterangan" value="${payment.keterangan}" required class="mt-1 w-full border rounded-md p-2"></div>
+                <div><label class="block text-sm">Jumlah</label><input type="text" name="jumlahBayar" value="${new Intl.NumberFormat('id-ID').format(payment.jumlah)}" required oninput="formatNumberInput(this)" class="mt-1 w-full border rounded-md p-2"></div>
+                <div class="pt-4"><button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg">Simpan Perubahan</button></div>
+            `;
+            openModal('modal-edit-pembayaran');
+        }
+
+        function updateHeaderStatus(){const currentTimeEl=document.getElementById('currentTime');const lastSaveTimeEl=document.getElementById('lastSaveTime');const autoSaveIndicatorEl=document.getElementById('autoSaveIndicator');const appVersionEl=document.getElementById('appVersion');if(appVersionEl)appVersionEl.textContent=APP_VERSION;const now=new Date();const options={weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'};if(currentTimeEl)currentTimeEl.textContent=now.toLocaleDateString('id-ID',options).replace(/\./g,':');const lastSave=localStorage.getItem('spp_lastSave');if(lastSaveTimeEl&&lastSave){lastSaveTimeEl.textContent=new Date(lastSave).toLocaleTimeString('id-ID')}if(autoSaveIndicatorEl){autoSaveIndicatorEl.classList.remove('opacity-50');setTimeout(()=>autoSaveIndicatorEl.classList.add('opacity-50'),500)}}
+        function backupData(){const dataToBackup={siswaDb:siswaDb,pembayaranDb:pembayaranDb,backupDate:new Date().toISOString()};const dataStr=JSON.stringify(dataToBackup,null,2);const dataBlob=new Blob([dataStr],{type:'application/json'});const url=URL.createObjectURL(dataBlob);const link=document.createElement('a');const timestamp=new Date().toISOString().slice(0,19).replace(/[-:T]/g,"");link.download=`backup_spp_${timestamp}.json`;link.href=url;link.click();URL.revokeObjectURL(url);alert('File backup sedang diunduh!')}
+        function restoreData(){const fileInput=document.getElementById('restoreFile');const file=fileInput.files[0];if(!file){alert('Silakan pilih file backup terlebih dahulu.');return}const confirmation=confirm("Anda yakin ingin menimpa semua data saat ini dengan data dari file backup? Tindakan ini tidak dapat dibatalkan.");if(!confirmation){fileInput.value='';return}const reader=new FileReader();reader.onload=function(event){try{const restoredData=JSON.parse(event.target.result);if(restoredData.siswaDb&&restoredData.pembayaranDb){siswaDb=restoredData.siswaDb;pembayaranDb=restoredData.pembayaranDb;saveData();renderAll();alert('Data berhasil dipulihkan!')}else{alert('File backup tidak valid atau rusak.')}}catch(error){alert('Gagal membaca file backup. Pastikan file dalam format JSON yang benar.');console.error("Restore error:",error)}finally{fileInput.value=''}};reader.readAsText(file)}
+        window.onload=()=>{loadData();renderAll();changeDatabaseTab('all');changeRekapTab('all');changeRekapLainnyaTab('all');updateHeaderStatus();setInterval(updateHeaderStatus,1000);};
+    </script>
+</body>
+</html>
+
